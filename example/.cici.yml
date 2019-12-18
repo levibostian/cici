@@ -1,13 +1,8 @@
-path: "_secrets"
 default:
   secrets:
-    - "file.txt"
-    - "path/file2.txt"
+    - "file2.txt"
+
 sets:
-  production:
-    path: "_production"
-  staging:
-    secrets:
-      - "file3.txt"
-output: "secrets_cici"
-skip_gitignore: false
+  beta:
+    secrets: 
+      - "file.txt"

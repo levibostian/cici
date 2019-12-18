@@ -23,8 +23,8 @@ module CICI
     def start
       assert_secret_files_exist
       compress
-      encrypt
       assert_files_in_gitignore
+      encrypt
     end
 
     private
@@ -61,47 +61,51 @@ module CICI
       iv = aes.random_iv
       File.write(@config.output_file_encrypted, aes.update(data) + aes.final)
 
-      # @util.run_command("travis encrypt-file #{@config.output_file} #{@config.output_file_encrypted}")
-
       @ui.success('Success! Now, you need to follow these last few steps:')
       @ui.success("1. Make sure to add #{@config.output_file_encrypted} to your source code repository")
-      @ui.success("2. Create the secret environment variable with key: #{CICI::DECRYPT_KEY_ENV_VAR} with value: #{Base64.encode64(key).strip}")
-      @ui.success("3. Create the secret environment variable with key: #{CICI::DECRYPT_IV_ENV_VAR} with value: #{Base64.encode64(iv).strip}")
+      @ui.success("2. Create a *secret* environment variable with key: #{CICI::DECRYPT_KEY_ENV_VAR} with value: #{Base64.encode64(key).strip}")
+      @ui.success("3. Create a *secret* environment variable with key: #{CICI::DECRYPT_IV_ENV_VAR} with value: #{Base64.encode64(iv).strip}")
     end
 
     def assert_files_in_gitignore
       ignore_file_name = '.gitignore'
 
-      if @config.skip_gitignore || !File.exist?(ignore_file_name)
+      if @config.skip_gitignore? || !File.exist?(ignore_file_name)
         @ui.verbose('Skipping adding entries to .gitignore file')
         return
       end
 
       @ui.verbose("Adding entries to #{ignore_file_name} file")
 
-      gitignore_file_contents = Set[]
+      current_gitignore_file_contents = Set[]
       File.foreach(ignore_file_name).with_index do |line, _line_num|
         line = line.strip
-        break if line.start_with?('#') # comment, skip
-
-        gitignore_file_contents.add(line)
+        current_gitignore_file_contents = current_gitignore_file_contents.add(line)
       end
+      @ui.debug("current contents of #{ignore_file_name}: #{current_gitignore_file_contents}")
 
-      gitignore_file_contents = File.read(ignore_file_name)
+      new_gitignore_additions = current_gitignore_file_contents.clone
       add_to_gitignore = lambda { |file|
-        unless gitignore_file_contents.include?(file)
-          @ui.debug("Adding: #{file} to #{ignore_file_name}")
-          gitignore_file_contents = "#{file}\n" + gitignore_file_contents
-        end
+        new_gitignore_additions = new_gitignore_additions.add(file)
       }
 
+      # Add all but the encrypted output file as that is required for decryption
       add_to_gitignore.call(@config.output_file)
       add_to_gitignore.call(@config.base_path)
       @config.all_secrets_original_paths.each do |secret_file|
         add_to_gitignore.call(secret_file)
       end
 
-      File.write(ignore_file_name, gitignore_file_contents)
+      new_gitignore_additions -= current_gitignore_file_contents
+      @ui.debug("additions to #{ignore_file_name}: #{new_gitignore_additions}")
+
+      new_gitignore_additions = new_gitignore_additions.to_a
+      unless new_gitignore_additions.empty? # only write if something to add
+        @ui.debug("writing new #{ignore_file_name} additions: #{new_gitignore_additions}")
+        gitignore_file_prepended_additions = new_gitignore_additions.join("\n") + "\n\n" + File.read(ignore_file_name)
+
+        File.write(ignore_file_name, gitignore_file_prepended_additions)
+      end
 
       @ui.verbose("Done adding entries to #{ignore_file_name}")
     end

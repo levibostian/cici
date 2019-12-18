@@ -1,78 +1,167 @@
+[![Gem](https://img.shields.io/gem/v/cici.svg)](https://rubygems.org/gems/cici)
+[![Travis (.com)](https://travis-ci.com/levibostian/cici.svg?branch=master)](https://travis-ci.com/levibostian/cici)
+[![GitHub](https://img.shields.io/github/license/levibostian/cici.svg)](https://github.com/levibostian/cici)
+
+# cici
+
+*Confidential Information for Continuous Integration (CICI)*
+
+When environment variables are not enough and you need to store secrets within files, `cici` is your friend. Store secret files in your source code repository with ease. 
+
+*Note: Can be used without a CI server, but tool is primarily designed for your CI server to decrypt your secret files for deployment.*
+
+# What is cici?
+
+`cici` is a CLI program where you can encrypt a directory of confidential files on your local machine, then decrypt that directory of files on a CI server with great ease and flexibility. Store secrets in your source code, easily without checking those secrets into source control. 
+
+# Why use cici?
+
+`cici` was inspired by Travis-CI's ability to encrypt files, but it's only limited to encrypting 1 file, per Travis repository. We can get around the 1 file limitation because we can just compress a directory of files into 1 compressed file using `zip` or `tar`. Well, that's great, but what about when we get to the CI server and we need to decrypt those secret files and then copy them from their original source to their final destination? It can start to get complex. 
+
+It would be awesome if we could simply write 1 command on the CI server: `cici decrypt` and automatically for us, the secret files our project depends on will be decrypted and then each secret file is copied to their destination in the source code. Nice! 
+
+But what if we have a production and a staging server? Easy. `cici decrypt --set production` or `cici decrypt --set staging`. `cici` can be configured with any number of sets of files. 
+
+Besides this simplicity and power, `cici` provides some nice features:
+1. Use `cici` with any CI service or git hosting service. It's not opinionated. You don't even need to use a CI service, really, if you just want to store private files in source code. 
+2. `cici` will add entries to your `.gitignore` file for you to make sure you don't accidentally add secrets to your git repo. 
+3. Full flexibility of where your secrets are stored with a configuration file you check into source control. 
+
+# Getting started 
+
+* Install this tool:
+
+```
+gem install cici
+```
+
+* Config. Let's use an example to explain the rest of the guide on getting started. 
+
+Let's say that you're building an app with the following secret files required to compile your project:
+1. `.env`
+2. `src/firebase/firebase-secrets.json`
+3. `App/GoogleService-Info.plist`
+
+Let's also say that we have a production and a beta app. 2 separate environments that require the same 3 files for each environment. 
+
+All you need to do is...
+1. Create a `secrets/` directory in your project source code with this file structure:
+```
+secrets/
+  .env
+  src/
+    firebase/
+      firebase-secrets.json
+  App/
+    GoogleService-Info.plist
+  beta/
+    .env
+    src/
+      firebase/
+        firebase-secrets.json
+    App/
+      GoogleService-Info.plist
+```
+
+2. Create a `.cici.yml` config file in the root of your project with the following:
+
 ```yml
-path: "path-here"
 default:
   secrets:
-    - "fil1"
-    - "path/file2"
+    - ".env"
+    - "src/firebase/firebase-secrets.json"
+    - "App/GoogleService-Info.plist"
+sets:
+  beta:
+```
+
+This config file here defines a default set of files that are secrets and also states that we have a set of files besides the default for "beta". `cici` requires you state a default set of secret files. It's up to you to decide what that default is. In this example, we decided that production should be the default set. You can have a development environment be your default. Then all other sets you need, define those in `sets` in the config. 
+
+* Time to encrypt!
+
+On your local development machine, run the command: `cici encrypt`. You will know the command ran successfully when you see "Success!" with further instructions of what to do next. 
+
+Make sure to follow the instructions printed out after the command so you can successfully decrypt. This includes setting *secret* environment variables on your CI machine (or whatever machine you're decrypting the data). Note: Make sure to keep these environment variables a secret. Follow the instructions for your given CI service to create environment variables that are not publicly viewable.
+
+Here are some instructions for some CI providers. Add yours if you don't see it below:
+* [Travis-CI](https://docs.travis-ci.com/user/environment-variables/#defining-encrypted-variables-in-travisyml)
+
+* Now, it's time to decrypt. After you add the secret environment variables above, you need to run one of the following commands on the CI server:
+
+```
+cici decrypt 
+```
+
+...for the default production environment...
+
+or,
+
+```
+cici decrypt --set beta 
+```
+
+...for the beta environment. 
+
+Done! What `cici` has done is (1) decrypted the encrypted file you made with the encryption step, (2) taken the production set of files or the beta set of files and copied them from the "secrets" directory into your project's source code where they belong. 
+
+So, if you have the following configuration file:
+
+```yml
+default:
+  secrets:
+    - ".env"
+    - "src/firebase/firebase-secrets.json"
+```
+
+and you run `cici decrypt`, `cici` will perform the following copy operations for you:
+
+1. `secrets/.env` -> `.env`
+2. `secrets/src/firebase/firebase-secrets.json` -> `src/firebase/firebase-secrets.json`
+
+and if you run `cici decrypt --set beta`, `cici` will perform the following copy operations for you:
+
+1. `secrets/beta/.env` -> `.env`
+2. `secrets/beta/src/firebase/firebase-secrets.json` -> `src/firebase/firebase-secrets.json`
+
+You're all done! I hope you enjoy `cici`. 
+
+# Advanced configuration 
+
+Here is a more advanced configuration file including all options the config file has to offer:
+
+```yml
+path: "_secrets"
+default:
+  secrets:
+    - "file.txt"
+    - "path/file2.txt"
 sets:
   production:
     path: "_production"
   staging:
     secrets:
-      - "file2"
-output: "secrets"
-skip_gitignore: false 
+      - "file3.txt"
+output: "secrets_cici"
+skip_gitignore: false
 ```
 
-remember, i also need to create CICI_DECRYPT_KEY and CICI_DECRYPT_IV for decrypting 
+Here is a breakdown of this file:
 
-
-# dotenv-ios
-
-Give access to `.env` environment variables file within your iOS projects. 
-
-`dotenv-ios` is a simple CLI tool you can run on each XCode build to inject environment variables into your iOS app. This tool was inspired by [the twelve-factor app](https://12factor.net/config) to make environmental changes in your app simple. 
-
-*Note: At this time, only Swift is supported.*
-
-# Getting started
-
-* Install this tool:
-
+```yml
+path: (optional, default 'secrets') - the name of the directory your secrets are stored.
+default: (required) - specifies a default set of files you want to encrypt/decrypt
+  secrets:
+    - "file.txt"
+    - "path/file2.txt"
+sets: (optional) - specify a unique collection of files to encrypt/decrypt
+  production: name of a set used as CLI argument to decrypt
+    path: (optional, default name of set) - subdirectory within "path" to store files for this set 
+  staging: another set
+    secrets: (optional, default is default secrets within subdirectory) set of files to encrypt/decrypt.
+      - "file3.txt"
+output: "secrets_cici" (optional, default, "secrets") - output file name when secrets compressed
+skip_gitignore: (optional, default true) - have cici add rules to .gitignore automatically or not for you. 
 ```
-gem install dotenv-ios
-```
-
-* In the root of your iOS project, create a `.env` file and store all of the environment variables you wish inside. (Make sure to add this file to your `.gitignore` to avoid checking it into source control!)
-
-* In your iOS app's source code, reference environment variables that you want to use:
-
-```swift
-let apiHost: String = Env.apiHost
-```
-
-At first, XCode will complain that `Env.apiHost` cannot be found. Don't worry. We will be fixing that. `dotenv-ios` CLI crawls your source code looking for `Env.X` requests and generating a `Env.swift` file for you! Anytime you want to use environmental variables, you just need to add it to your source. Super easy. 
-
-* Create a new Build Phase in XCode to run this command. Reorder the new Build Phase to be first to run. That way this tool can generate the environment variables before XCode tries to compile your app's source code. 
-
-First, create a bash script in your project (for example purposes here, we created a script named, `dot_env_ios.rb` in the root of the project. It's important to put it there so dotenv-ios can find the `.env` file in the root):
-
-```ruby
-#!/usr/bin/env ruby   
-
-require 'dotenv'
-Dotenv.load('.env')
-
-`bundle exec dotenv-ios --source #{ENV["SOURCE_CODE_DIRECTORY"]}`
-```
-
-You will notice above that I am also using the `dotenv` ruby gem to make life even easier storing a variable `SOURCE_CODE_DIRECTORY` in `.env` I can use in this script. 
-
-Now, back to XCode build scripts. Leave the shell as the default, `/bin/sh` and have the script in XCode simply execute your bash script you just made:
-
-```
-./dot_env_ios.rb
-```
-
-Done! 
-
-*Note: It's highly recommended you checkout [this quick doc](https://gist.github.com/levibostian/aac45628ff00f677888824d651cc7724) on how to run ruby scripts within XCode as you may encounter issues along the way.*
-
-* Run a build in XCode (Cmd + B) to run the `dotenv-ios` CLI tool. 
-
-* Add the newly generated `PathToYourSourceCode/Env.swift` file to your XCode project. 
-
-* Done! 
 
 ## Development 
 
@@ -81,6 +170,26 @@ $> bundle install
 ```
 
 You're ready to start developing! 
+
+##### Lint
+
+```
+bundle exec rake lint
+```
+
+##### Build/install
+
+```
+bundle exec rake install
+bundle exec cici # You're running cici!
+```
+
+Or, 
+
+```
+bundle exec rake build; gem install cici*.gem
+cici # you have installed cici to your whole machine!
+```
 
 ## Deployment 
 
@@ -97,7 +206,7 @@ This gem is setup automatically to deploy to RubyGems on a git tag deployment.
 
 ## Contribute
 
-dotenv-ios is open for pull requests. Check out the [list of issues](https://github.com/levibostian/dotenv-ios/issues) for tasks I am planning on working on. Check them out if you wish to contribute in that way.
+cici is open for pull requests. Check out the [list of issues](https://github.com/levibostian/cici/issues) for tasks I am planning on working on. Check them out if you wish to contribute in that way.
 
 **Want to add features?** Before you decide to take a bunch of time and add functionality to the library, please, [create an issue]
-(https://github.com/levibostian/dotenv-ios/issues/new) stating what you wish to add. This might save you some time in case your purpose does not fit well in the use cases of this project.
+(https://github.com/levibostian/cici/issues/new) stating what you wish to add. This might save you some time in case your purpose does not fit well in the use cases of this project.
