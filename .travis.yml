@@ -17,7 +17,7 @@ jobs:
     - stage: tests      
       script: bundle exec rake lint    
     - # tests 
-      script: bundle exec rake install && bundle exec dotenv-ios -v
+      script: bundle exec rake install && bundle exec cici -v
     - stage: deploy
       script: 
         - printf "%s\\n%s " "---" ":rubygems_api_key:" > ~/.gem/credentials
