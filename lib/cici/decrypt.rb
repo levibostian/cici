@@ -25,29 +25,35 @@ module CICI
       @set = set
 
       assert_encrypted_secret_exist
-      decrypt
+      plain = decrypt(Base64.decode64(@util.get_env(CICI::DECRYPT_KEY_ENV_VAR)), Base64.decode64(@util.get_env(CICI::DECRYPT_IV_ENV_VAR)))
+      if !plain.empty?
+        File.write(@config.output_file, plain)
+      else 
+        @ui.fail("Wrong key/iv pair for decryption.")
+      end 
       decompress
       copy_files
 
       @ui.success('Files successfully decrypted and copied to their destination!')
     end
 
-    private
-
-    def assert_encrypted_secret_exist
-      @ui.fail("Encrypted secrets file, #{@config.output_file_encrypted}, does not exist") unless File.file?(@config.output_file_encrypted)
-    end
-
-    def decrypt
+    def decrypt(key, iv)
       @ui.verbose('Decrypting secrets encrypted file.')
 
       decipher = OpenSSL::Cipher.new('AES-256-CBC')
       decipher.decrypt
-      decipher.key = Base64.decode64(@util.get_env(CICI::DECRYPT_KEY_ENV_VAR))
-      decipher.iv = Base64.decode64(@util.get_env(CICI::DECRYPT_IV_ENV_VAR))
+      decipher.key = key
+      decipher.iv = iv
 
       plain = decipher.update(File.read(@config.output_file_encrypted)) + decipher.final
-      File.write(@config.output_file, plain)
+
+      return plain
+    end
+
+    private
+
+    def assert_encrypted_secret_exist
+      @ui.fail("Encrypted secrets file, #{@config.output_file_encrypted}, does not exist") unless File.file?(@config.output_file_encrypted)
     end
 
     def decompress
