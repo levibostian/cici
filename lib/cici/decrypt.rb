@@ -28,9 +28,9 @@ module CICI
       plain = decrypt(Base64.decode64(@util.get_env(CICI::DECRYPT_KEY_ENV_VAR)), Base64.decode64(@util.get_env(CICI::DECRYPT_IV_ENV_VAR)))
       if !plain.empty?
         File.write(@config.output_file, plain)
-      else 
-        @ui.fail("Wrong key/iv pair for decryption.")
-      end 
+      else
+        @ui.fail('Wrong key/iv pair for decryption.')
+      end
       decompress
       copy_files
 
@@ -47,7 +47,7 @@ module CICI
 
       plain = decipher.update(File.read(@config.output_file_encrypted)) + decipher.final
 
-      return plain
+      plain
     end
 
     private

@@ -25,7 +25,7 @@ module CICI
       @config.load
 
       @decrypter = CICI::Decrypt.new(@ui, @config)
-      @encrypter = CICI::Encrypt.new(@ui, @decrypter, @config)      
+      @encrypter = CICI::Encrypt.new(@ui, @decrypter, @config)
 
       run_command
     end
