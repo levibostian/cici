@@ -24,6 +24,9 @@ module CICI
       @config = CICI::Config.new(@ui)
       @config.load
 
+      @decrypter = CICI::Decrypt.new(@ui, @config)
+      @encrypter = CICI::Encrypt.new(@ui, @decrypter, @config)
+
       run_command
     end
 
@@ -82,11 +85,11 @@ module CICI
     end
 
     def encrypt
-      CICI::Encrypt.new(@ui, @config).start
+      @encrypter.start
     end
 
     def decrypt
-      CICI::Decrypt.new(@ui, @config).start(@options.set)
+      @decrypter.start(@options.set)
     end
   end
 end

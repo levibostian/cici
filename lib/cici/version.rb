@@ -3,7 +3,7 @@
 module CICI
   class Version
     def self.get
-      '0.1.0'
+      '0.2.0'
     end
   end
 end

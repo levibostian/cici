@@ -18,6 +18,11 @@ module CICI
       abort(message.colorize(:red))
     end
 
+    # No way to disable this. These are message that must be outputted.
+    def message(message)
+      puts message
+    end
+
     def warning(message)
       puts message.to_s.colorize(:yellow)
     end

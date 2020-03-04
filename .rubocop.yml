@@ -13,6 +13,9 @@ Metrics/AbcSize:
 Metrics/MethodLength:
   Max: 40
 
+Metrics/ClassLength:
+  Max: 150  
+
 Documentation:
   Enabled: false
 

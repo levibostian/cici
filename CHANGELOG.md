@@ -1,3 +1,8 @@
+## [0.2.0] - 2020-03-03
+
+### Changed
+- Reuse the key/iv values to encrypt. [Issue](https://github.com/levibostian/cici/issues/2)
+
 ## [0.1.0] - 2019-12-17
 
 ### Added 

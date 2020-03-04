@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    cici (0.1.0)
+    cici (0.2.0)
       colorize (~> 0.8, >= 0.8.1)
 
 GEM

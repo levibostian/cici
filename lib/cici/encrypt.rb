@@ -14,14 +14,24 @@ module CICI
   class Encrypt
     include CICI
 
-    def initialize(ui, config)
+    def initialize(ui, decrypter, config)
       @ui = ui
       @config = config
       @util = CICI::Util.new(@ui)
+      @decrypter = decrypter
+
+      # Default key/iv that's generated for you. We can change these values later before encryption.
+      aes = OpenSSL::Cipher.new('AES-256-CBC')
+      aes.encrypt
+      @encryption_key = aes.random_key
+      @encryption_iv = aes.random_iv
+      @first_time_encrypting = false
     end
 
     def start
       assert_secret_files_exist
+      # We want to reuse key/iv values for encryption. So, let's get those values before moving forward.
+      prompt_for_keys
       compress
       assert_files_in_gitignore
       encrypt
@@ -45,6 +55,30 @@ module CICI
       end
     end
 
+    def prompt_for_keys
+      has_encrypted_before = File.exist?(@config.output_file)
+
+      if has_encrypted_before
+        @ui.message('It looks like you have encrypted your secrets before.')
+        @ui.message('Enter the key you use to encrypt:')
+        key = Base64.decode64(STDIN.gets.chomp)
+        @ui.message('Enter the IV you use to encrypt:')
+        iv = Base64.decode64(STDIN.gets.chomp)
+
+        plain = @decrypter.decrypt(key, iv)
+        @ui.fail('Key or IV value does not match the key/IV pair used when previously encrypting') if plain.empty?
+
+        @encryption_key = key
+        @encryption_iv = iv
+      else
+        @ui.debug("Encrypted output file, #{@config.output_file}, does not exist. Therefore, let's assume this is the first time encrypting secrets.")
+
+        @ui.message('It looks like this is the first time that you are encrypting secrets.')
+        @ui.message('Generating secure keys for you...')
+        @first_time_encrypting = true
+      end
+    end
+
     def compress
       @ui.verbose('Compressing secrets...')
 
@@ -57,14 +91,23 @@ module CICI
       aes = OpenSSL::Cipher.new('AES-256-CBC')
       data = File.binread(@config.output_file)
       aes.encrypt
-      key = aes.random_key
-      iv = aes.random_iv
+      aes.key = @encryption_key
+      aes.iv = @encryption_iv
       File.write(@config.output_file_encrypted, aes.update(data) + aes.final)
 
-      @ui.success('Success! Now, you need to follow these last few steps:')
-      @ui.success("1. Make sure to add #{@config.output_file_encrypted} to your source code repository")
-      @ui.success("2. Create a *secret* environment variable with key: #{CICI::DECRYPT_KEY_ENV_VAR} with value: #{Base64.encode64(key).strip}")
-      @ui.success("3. Create a *secret* environment variable with key: #{CICI::DECRYPT_IV_ENV_VAR} with value: #{Base64.encode64(iv).strip}")
+      if @first_time_encrypting
+        @ui.success('Success! Now, you need to follow these last few steps:')
+        @ui.success("1. Make sure to add #{@config.output_file_encrypted} to your version control")
+        @ui.success('Below you will find secret keys used to encrypt and decrypt your secrets in the future.')
+        @ui.success('**These will not be revealed ever again!** Store these in a safe and secure place.')
+        @ui.success('')
+        @ui.success('2. Share these secret keys with your team. They must provide the same keys to encrypt again. Keep secrets up-to-date with a git hook.')
+        @ui.success('3. Set these *secret* environment variables in your CI server for decryption.')
+        @ui.success("Key: #{CICI::DECRYPT_KEY_ENV_VAR} and value: #{Base64.encode64(@encryption_key).strip}")
+        @ui.success("Key: #{CICI::DECRYPT_IV_ENV_VAR} and value: #{Base64.encode64(@encryption_iv).strip}")
+      else
+        @ui.success('Success!')
+      end
     end
 
     def assert_files_in_gitignore
